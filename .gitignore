@@ -7,3 +7,4 @@ chronic+kidney+disease/
 .env
 __pycache__/
 *.py[cod]
+.codex
