@@ -8,3 +8,8 @@ chronic+kidney+disease/
 __pycache__/
 *.py[cod]
 .codex
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
