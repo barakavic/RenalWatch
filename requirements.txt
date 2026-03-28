@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+alembic
+asyncpg
+psycopg2-binary
+pydantic-settings
+scikit-learn
+scikit-fuzzy
+scipy
+numpy
+pandas
+africastalking
+joblib
+python-dotenv
+httpx
+aiofiles
