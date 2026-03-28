@@ -1,5 +1,5 @@
 """
-Notification service — orchestrates SMS and email alerts.
+Notification service — orchestrates SMS, email alerts, and reminders.
 """
 
 import logging
@@ -9,6 +9,7 @@ from app.integrations.africas_talking import send_sms
 from app.integrations.email import send_email
 from app.models.alert import Alert
 from app.models.patient import Patient
+from app.models.reminder import Reminder
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,37 @@ async def send_alert_notifications(alert: Alert, patient: Patient) -> str:
         return "sms"
     if "email_doctor" in channels_used:
         return "email"
+    return "none"
+
+
+async def send_reminder_notification(reminder: Reminder, patient: Patient) -> str:
+    channels_used: list[str] = []
+
+    try:
+        sms_response = await send_sms(patient.phone, reminder.message)
+        if sms_response is not None:
+            channels_used.append("sms")
+    except Exception as exc:
+        logger.warning("Failed to send reminder SMS for patient %s: %s", patient.id, exc)
+
+    if reminder.reminder_type == "appointment" and patient.email:
+        try:
+            email_sent = await send_email(
+                to=patient.email,
+                subject="RenalWatch reminder",
+                body=reminder.message,
+            )
+            if email_sent:
+                channels_used.append("email")
+        except Exception as exc:
+            logger.warning("Failed to send reminder email for patient %s: %s", patient.id, exc)
+
+    if "sms" in channels_used and "email" in channels_used:
+        return "sms,email"
+    if "email" in channels_used:
+        return "email"
+    if "sms" in channels_used:
+        return "sms"
     return "none"
 
 

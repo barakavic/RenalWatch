@@ -1,14 +1,15 @@
 """
 Email integration via Gmail SMTP.
-Sends email alerts to doctors and patients.
+Sends email alerts and reminders.
 """
 
 import logging
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from app.core.config import settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,58 +17,37 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
 
 
+def _email_is_configured() -> bool:
+    return settings.smtp_email != "your@gmail.com" and settings.smtp_password != "your_gmail_app_password"
+
+
 async def send_email(to: str, subject: str, body: str, body_html: str = None) -> bool:
-    """
-    Send an email via Gmail SMTP.
+    if not to or not _email_is_configured():
+        logger.info("Skipping email send because SMTP credentials are placeholders or recipient is missing.")
+        return False
 
-    Args:
-        to: Recipient email address
-        subject: Email subject line
-        body: Plain text email body
-        body_html: Optional HTML version of the email body
-
-    Returns:
-        bool: True if email sent successfully, False otherwise
-    """
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = settings.smtp_email
         msg["To"] = to
 
-        # Attach plain text part
         msg.attach(MIMEText(body, "plain"))
-
-        # Attach HTML part if provided
         if body_html:
             msg.attach(MIMEText(body_html, "html"))
 
-        # Send via Gmail SMTP
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             server.login(settings.smtp_email, settings.smtp_password)
             server.send_message(msg)
 
-        logger.info(f"Email sent to {to} with subject: {subject}")
+        logger.info("Email sent to %s with subject %s", to, subject)
         return True
-
-    except Exception as e:
-        logger.error(f"Failed to send email to {to}: {str(e)}")
+    except Exception as exc:
+        logger.error("Failed to send email to %s: %s", to, exc)
         return False
 
 
 async def send_bulk_email(recipients: list[str], subject: str, body: str, body_html: str = None) -> dict:
-    """
-    Send the same email to multiple recipients.
-
-    Args:
-        recipients: List of email addresses
-        subject: Email subject line
-        body: Plain text email body
-        body_html: Optional HTML version
-
-    Returns:
-        dict: {"sent": count, "failed": count}
-    """
     results = {"sent": 0, "failed": 0}
 
     for recipient in recipients:
@@ -77,5 +57,5 @@ async def send_bulk_email(recipients: list[str], subject: str, body: str, body_h
         else:
             results["failed"] += 1
 
-    logger.info(f"Bulk email results: {results['sent']} sent, {results['failed']} failed")
+    logger.info("Bulk email results: %s sent, %s failed", results["sent"], results["failed"])
     return results
