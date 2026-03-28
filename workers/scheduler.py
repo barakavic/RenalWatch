@@ -1,8 +1,12 @@
 import asyncio
 from datetime import UTC, datetime
+import os
+import sys
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.session import AsyncSessionLocal
 from app.models.patient import Patient
