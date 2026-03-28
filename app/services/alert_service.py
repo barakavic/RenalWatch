@@ -1,5 +1,9 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ml.anomaly import detect
+from app.ml.explain import build_explanations
+from app.ml.rules import classify_bp
 from app.models.alert import Alert
 from app.models.bp_reading import BPReading
 from app.models.patient import Patient
@@ -7,6 +11,33 @@ from app.services.notification_service import send_alert_notifications
 
 
 async def evaluate_reading_for_alerts(reading: BPReading, patient: Patient, db: AsyncSession) -> Alert | None:
+    history_result = await db.execute(
+        select(BPReading)
+        .where(BPReading.patient_id == patient.id, BPReading.id != reading.id)
+        .order_by(BPReading.timestamp.desc(), BPReading.id.desc())
+        .limit(5)
+    )
+    history_rows = list(history_result.scalars().all())
+    history = [{"systolic": row.systolic, "diastolic": row.diastolic} for row in history_rows]
+
+    anomaly_result = detect(
+        systolic=reading.systolic,
+        diastolic=reading.diastolic,
+        history=history,
+    )
+    rule_result = classify_bp(reading.systolic, reading.diastolic)
+    explanation_result = build_explanations(
+        systolic=reading.systolic,
+        diastolic=reading.diastolic,
+        anomaly_result=anomaly_result,
+        rule_result=rule_result,
+    )
+
+    reading.anomaly_score = anomaly_result["anomaly_score"]
+    reading.is_anomaly = 1 if anomaly_result["is_anomaly"] else 0
+    reading.fuzzy_severity = rule_result["severity"]
+    reading.explanation = explanation_result["summary"] + " " + " ".join(explanation_result["reasons"])
+
     alert_type: str | None = None
     severity: str | None = None
     explanation: str | None = None
