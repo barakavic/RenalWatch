@@ -1,0 +1,137 @@
+import { subDays, subHours, subMinutes } from 'date-fns'
+
+export const patients = [
+  {
+    id: '1',
+    name: 'Joseph Kamau',
+    email: 'joseph.kamau@example.com',
+    age: 58,
+    phone: '+254 712 345678',
+    ckdStage: 3,
+    riskLevel: 'high',
+    latestBp: '152/94',
+    latestReadingAt: subHours(new Date(), 2).toISOString(),
+    activeToday: true,
+    anomalyStatus: 'Anomaly',
+    anomalyScore: -0.0124,
+    summary: 'Stage 2 pattern with abrupt rise over the last 24 hours.',
+  },
+  {
+    id: '2',
+    name: 'Sarah Njoroge',
+    email: 'sarah.njoroge@example.com',
+    age: 62,
+    phone: '+254 799 123456',
+    ckdStage: 4,
+    riskLevel: 'critical',
+    latestBp: '185/121',
+    latestReadingAt: subMinutes(new Date(), 30).toISOString(),
+    activeToday: true,
+    anomalyStatus: 'Anomaly',
+    anomalyScore: -0.0456,
+    summary: 'Crisis-range reading with persistent upward pressure trend.',
+  },
+  {
+    id: '3',
+    name: 'Peter Ochieng',
+    email: 'peter.ochieng@example.com',
+    age: 45,
+    phone: '+254 722 987654',
+    ckdStage: 2,
+    riskLevel: 'low',
+    latestBp: '124/79',
+    latestReadingAt: subDays(new Date(), 2).toISOString(),
+    activeToday: false,
+    anomalyStatus: 'Normal',
+    anomalyScore: 0.1182,
+    summary: 'Stable home readings with no recent alerts.',
+  },
+  {
+    id: '4',
+    name: 'Mary Wanjiku',
+    email: 'mary.wanjiku@example.com',
+    age: 51,
+    phone: '+254 733 456789',
+    ckdStage: 3,
+    riskLevel: 'medium',
+    latestBp: '136/86',
+    latestReadingAt: subHours(new Date(), 5).toISOString(),
+    activeToday: true,
+    anomalyStatus: 'Watch',
+    anomalyScore: -0.0012,
+    summary: 'Elevated trend detected, but no crisis alert threshold crossed.',
+  },
+  {
+    id: '5',
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    age: 70,
+    phone: '+254 700 112233',
+    ckdStage: 4,
+    riskLevel: 'high',
+    latestBp: '145/92',
+    latestReadingAt: subHours(new Date(), 12).toISOString(),
+    activeToday: false,
+    anomalyStatus: 'Anomaly',
+    anomalyScore: -0.005,
+    summary: 'Stage 2 blood pressure with ML anomaly support.',
+  },
+]
+
+export const patientReadings = {
+  '1': [
+    { id: 'r1', bp: '152/94', source: 'wearable', time: subHours(new Date(), 2).toISOString(), anomaly: true, severity: 'high' },
+    { id: 'r2', bp: '145/90', source: 'manual', time: subHours(new Date(), 12).toISOString(), anomaly: true, severity: 'stage2' },
+    { id: 'r3', bp: '138/88', source: 'manual', time: subDays(new Date(), 1).toISOString(), anomaly: false, severity: 'stage1' },
+  ],
+  '2': [
+    { id: 'r4', bp: '185/121', source: 'manual', time: subMinutes(new Date(), 30).toISOString(), anomaly: true, severity: 'critical' },
+    { id: 'r5', bp: '190/122', source: 'manual', time: subHours(new Date(), 18).toISOString(), anomaly: true, severity: 'critical' },
+    { id: 'r6', bp: '160/104', source: 'wearable', time: subDays(new Date(), 1).toISOString(), anomaly: true, severity: 'high' },
+  ],
+}
+
+export const alerts = [
+  {
+    id: 'a1',
+    patientId: '2',
+    patientName: 'Sarah Njoroge',
+    type: 'crisis',
+    severity: 'critical',
+    bp: '185/121',
+    sentVia: 'none',
+    triggeredAt: subMinutes(new Date(), 30).toISOString(),
+    explanation: 'Blood pressure exceeded crisis threshold and anomaly detection also flagged instability.',
+    status: 'unresolved',
+  },
+  {
+    id: 'a2',
+    patientId: '1',
+    patientName: 'Joseph Kamau',
+    type: 'stage2',
+    severity: 'high',
+    bp: '152/94',
+    sentVia: 'sms',
+    triggeredAt: subHours(new Date(), 2).toISOString(),
+    explanation: 'Stage 2 range sustained across recent readings with a positive anomaly signal.',
+    status: 'reviewed',
+  },
+]
+
+export const reminders = [
+  { id: 'm1', patientId: '1', patientName: 'Joseph Kamau', type: 'Medication', dueAt: subMinutes(new Date(), 15).toISOString(), status: 'sent', channel: 'sms' },
+  { id: 'm2', patientId: '2', patientName: 'Sarah Njoroge', type: 'BP Check', dueAt: subHours(new Date(), 1).toISOString(), status: 'pending', channel: 'whatsapp' },
+  { id: 'm3', patientId: '4', patientName: 'Mary Wanjiku', type: 'Appointment', dueAt: subHours(new Date(), 4).toISOString(), status: 'active', channel: 'email' },
+]
+
+export const symptoms = [
+  {
+    patientId: '2',
+    fatigue: 7,
+    painLevel: 6,
+    swelling: 5,
+    nausea: 3,
+    notes: 'Feeling dizzy in the morning after medication.',
+    submittedAt: subHours(new Date(), 6).toISOString(),
+  },
+]
