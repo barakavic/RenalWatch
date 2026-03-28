@@ -27,6 +27,7 @@ def upgrade() -> None:
         sa.Column("age", sa.Integer(), nullable=False),
         sa.Column("ckd_stage", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.CheckConstraint("ckd_stage BETWEEN 1 AND 5", name="ck_patients_ckd_stage"),
     )
     op.create_index(op.f("ix_patients_id"), "patients", ["id"], unique=False)
     op.create_index(op.f("ix_patients_phone"), "patients", ["phone"], unique=True)
@@ -52,9 +53,9 @@ def upgrade() -> None:
         sa.Column("systolic", sa.Float(), nullable=False),
         sa.Column("diastolic", sa.Float(), nullable=False),
         sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("source", sa.String(length=32), nullable=False),
+        sa.Column("source", sa.String(length=32), server_default=sa.text("'wearable'"), nullable=False),
         sa.Column("anomaly_score", sa.Float(), nullable=True),
-        sa.Column("is_anomaly", sa.Integer(), nullable=False),
+        sa.Column("is_anomaly", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("fuzzy_severity", sa.String(length=32), nullable=True),
         sa.Column("explanation", sa.String(length=1024), nullable=True),
     )
@@ -69,7 +70,7 @@ def upgrade() -> None:
         sa.Column("reminder_type", sa.String(length=32), nullable=False),
         sa.Column("message", sa.String(length=1024), nullable=False),
         sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("sent", sa.Integer(), nullable=False),
+        sa.Column("sent", sa.Integer(), server_default=sa.text("0"), nullable=False),
     )
     op.create_index(op.f("ix_reminders_id"), "reminders", ["id"], unique=False)
     op.create_index(op.f("ix_reminders_patient_id"), "reminders", ["patient_id"], unique=False)
@@ -83,8 +84,12 @@ def upgrade() -> None:
         sa.Column("swelling", sa.Integer(), nullable=True),
         sa.Column("nausea", sa.Integer(), nullable=True),
         sa.Column("notes", sa.String(length=1024), nullable=True),
-        sa.Column("chat_step", sa.String(length=32), nullable=False),
+        sa.Column("chat_step", sa.String(length=32), server_default=sa.text("'start'"), nullable=False),
         sa.Column("logged_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.CheckConstraint("fatigue IS NULL OR fatigue BETWEEN 1 AND 10", name="ck_symptom_logs_fatigue"),
+        sa.CheckConstraint("pain_level IS NULL OR pain_level BETWEEN 1 AND 10", name="ck_symptom_logs_pain_level"),
+        sa.CheckConstraint("swelling IS NULL OR swelling BETWEEN 1 AND 10", name="ck_symptom_logs_swelling"),
+        sa.CheckConstraint("nausea IS NULL OR nausea BETWEEN 1 AND 10", name="ck_symptom_logs_nausea"),
     )
     op.create_index(op.f("ix_symptom_logs_id"), "symptom_logs", ["id"], unique=False)
     op.create_index(op.f("ix_symptom_logs_patient_id"), "symptom_logs", ["patient_id"], unique=False)

@@ -1,6 +1,9 @@
 venv/
 backup.ab
 backup.tar
-fitpro.db
+fitPro.db
 listen.py
 chronic+kidney+disease/
+.env
+__pycache__/
+*.py[cod]

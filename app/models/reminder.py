@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -14,6 +14,6 @@ class Reminder(Base):
     reminder_type: Mapped[str] = mapped_column(String(32), nullable=False)
     message: Mapped[str] = mapped_column(String(1024), nullable=False)
     scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
 
     patient = relationship("Patient", back_populates="reminders")
