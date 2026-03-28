@@ -1,5 +1,5 @@
 """
-Notification service — orchestrates SMS, email alerts, and reminders.
+Notification service — orchestrates SMS, email alerts, reminders, and chatbot doctor summaries.
 """
 
 import logging
@@ -10,6 +10,7 @@ from app.integrations.email import send_email
 from app.models.alert import Alert
 from app.models.patient import Patient
 from app.models.reminder import Reminder
+from app.models.symptom_log import SymptomLog
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,52 @@ async def send_reminder_notification(reminder: Reminder, patient: Patient) -> st
                 channels_used.append("email")
         except Exception as exc:
             logger.warning("Failed to send reminder email for patient %s: %s", patient.id, exc)
+
+    if "sms" in channels_used and "email" in channels_used:
+        return "sms,email"
+    if "email" in channels_used:
+        return "email"
+    if "sms" in channels_used:
+        return "sms"
+    return "none"
+
+
+async def notify_doctor_symptoms(patient: Patient, log: SymptomLog) -> str:
+    summary = (
+        f"RenalWatch Update for {patient.name} (Phone: {patient.phone}):\n"
+        f"Fatigue: {log.fatigue}/10\n"
+        f"Pain: {log.pain_level}/10\n"
+        f"Swelling: {log.swelling}/10\n"
+        f"Nausea: {log.nausea}/10\n"
+        f"Notes: {log.notes or 'N/A'}"
+    )
+
+    channels_used: list[str] = []
+
+    if settings.doctor_phone:
+        sms_message = (
+            f"Symptom Summary: {patient.name} check-in complete. "
+            f"Fatigue/Pain/Swelling/Nausea: "
+            f"{log.fatigue}/{log.pain_level}/{log.swelling}/{log.nausea}."
+        )
+        try:
+            sms_response = await send_sms(settings.doctor_phone, sms_message)
+            if sms_response is not None:
+                channels_used.append("sms")
+        except Exception as exc:
+            logger.warning("Failed to send doctor symptom SMS for patient %s: %s", patient.id, exc)
+
+    if settings.doctor_email:
+        try:
+            email_sent = await send_email(
+                to=settings.doctor_email,
+                subject=f"Patient Check-in - {patient.name}",
+                body=summary,
+            )
+            if email_sent:
+                channels_used.append("email")
+        except Exception as exc:
+            logger.warning("Failed to send doctor symptom email for patient %s: %s", patient.id, exc)
 
     if "sms" in channels_used and "email" in channels_used:
         return "sms,email"

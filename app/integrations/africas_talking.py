@@ -1,5 +1,5 @@
 """
-Africa's Talking SMS integration wrapper.
+Africa's Talking SMS / WhatsApp integration wrapper.
 """
 
 import logging
@@ -57,3 +57,7 @@ async def send_bulk_sms(recipients: list[str], message: str) -> dict | None:
     except Exception as exc:
         logger.error("Failed to send bulk SMS: %s", exc)
         raise
+
+
+def send_whatsapp_message(phone: str, message: str) -> None:
+    logger.info("[AT WHATSAPP MOCK] To %s: %s", phone, message)
