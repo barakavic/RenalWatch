@@ -16,3 +16,7 @@ python-dotenv
 httpx
 aiofiles
 python-multipart
+twilio
+transformers
+sentencepiece
+torch

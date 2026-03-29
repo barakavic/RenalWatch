@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, HeartPulse, Search, TrendingUp, Users } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Link } from 'react-router-dom'
@@ -6,18 +7,66 @@ import TopNav from '../components/layout/TopNav.jsx'
 import KpiCard from '../components/ui/KpiCard.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
 import Table from '../components/ui/Table.jsx'
-import { patients } from '../data/mockData.js'
+import { getDashboardOverview } from '../lib/api.js'
 
 function stageVariant(stage) {
   return `stage${stage}`
 }
 
 export default function PatientOverviewPage() {
-  const kpis = {
-    total: patients.length,
-    critical: patients.filter((patient) => patient.riskLevel === 'critical').length,
-    high: patients.filter((patient) => patient.riskLevel === 'high').length,
-    active: patients.filter((patient) => patient.activeToday).length,
+  const [overview, setOverview] = useState({ kpis: null, patients: [] })
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadOverview() {
+      try {
+        setLoading(true)
+        const data = await getDashboardOverview()
+        if (!cancelled) {
+          setOverview(data)
+          setError('')
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError('Could not load dashboard overview.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadOverview()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const filteredPatients = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) {
+      return overview.patients
+    }
+
+    return overview.patients.filter((patient) => {
+      return (
+        patient.name.toLowerCase().includes(needle) ||
+        (patient.phone ?? '').toLowerCase().includes(needle) ||
+        (patient.email ?? '').toLowerCase().includes(needle)
+      )
+    })
+  }, [overview.patients, query])
+
+  const kpis = overview.kpis ?? {
+    total_patients: 0,
+    critical_risk: 0,
+    high_risk: 0,
+    active_today: 0,
   }
 
   const columns = [
@@ -33,20 +82,21 @@ export default function PatientOverviewPage() {
     },
     { key: 'age', header: 'Age' },
     {
-      key: 'ckdStage',
+      key: 'ckd_stage',
       header: 'CKD Stage',
-      render: (patient) => <StatusBadge variant={stageVariant(patient.ckdStage)}>Stage {patient.ckdStage}</StatusBadge>,
+      render: (patient) => <StatusBadge variant={stageVariant(patient.ckd_stage)}>Stage {patient.ckd_stage}</StatusBadge>,
     },
     {
-      key: 'riskLevel',
+      key: 'risk_level',
       header: 'Risk',
-      render: (patient) => <StatusBadge variant={patient.riskLevel}>{patient.riskLevel}</StatusBadge>,
+      render: (patient) => <StatusBadge variant={patient.risk_level}>{patient.risk_level}</StatusBadge>,
     },
-    { key: 'latestBp', header: 'Latest BP' },
+    { key: 'latest_bp', header: 'Latest BP' },
     {
-      key: 'latestReadingAt',
+      key: 'latest_reading_at',
       header: 'Last Reading',
-      render: (patient) => formatDistanceToNow(new Date(patient.latestReadingAt), { addSuffix: true }),
+      render: (patient) =>
+        patient.latest_reading_at ? formatDistanceToNow(new Date(patient.latest_reading_at), { addSuffix: true }) : 'No reading yet',
     },
     { key: 'phone', header: 'Phone' },
     {
@@ -73,10 +123,10 @@ export default function PatientOverviewPage() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Total Patients" value={kpis.total} icon={Users} tone="default" />
-          <KpiCard label="Critical Risk" value={kpis.critical} icon={AlertTriangle} tone="critical" />
-          <KpiCard label="High Risk" value={kpis.high} icon={TrendingUp} tone="warning" />
-          <KpiCard label="Active Today" value={kpis.active} icon={HeartPulse} tone="success" />
+          <KpiCard label="Total Patients" value={kpis.total_patients} icon={Users} tone="default" />
+          <KpiCard label="Critical Risk" value={kpis.critical_risk} icon={AlertTriangle} tone="critical" />
+          <KpiCard label="High Risk" value={kpis.high_risk} icon={TrendingUp} tone="warning" />
+          <KpiCard label="Active Today" value={kpis.active_today} icon={HeartPulse} tone="success" />
         </section>
 
         <section className="surface-card p-4">
@@ -86,6 +136,8 @@ export default function PatientOverviewPage() {
               <input
                 type="search"
                 placeholder="Search by patient name or phone"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none transition focus:border-brand-300 focus:bg-white"
               />
             </label>
@@ -104,7 +156,13 @@ export default function PatientOverviewPage() {
         </section>
 
         <section className="surface-card overflow-hidden">
-          <Table columns={columns} rows={patients} rowKey="id" />
+          {loading ? (
+            <div className="p-6 text-sm text-slate-500">Loading patients...</div>
+          ) : error ? (
+            <div className="p-6 text-sm text-red-600">{error}</div>
+          ) : (
+            <Table columns={columns} rows={filteredPatients} rowKey="id" />
+          )}
         </section>
       </main>
     </div>

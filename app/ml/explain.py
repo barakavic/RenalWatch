@@ -1,3 +1,10 @@
+from app.nlp.formatter import (
+    render_doctor_explanation,
+    render_patient_explanation,
+    render_summary_text,
+)
+
+
 def build_explanations(
     *,
     systolic: float,
@@ -65,7 +72,21 @@ def build_explanations(
         summary += " Limited historical context was available for anomaly detection."
 
     return {
-        "summary": summary,
+        "summary": render_summary_text(
+            severity=severity,
+            is_anomaly=anomaly_result.get("is_anomaly", False),
+        ),
+        "doctor_explanation": render_doctor_explanation(
+            severity=severity,
+            anomaly_score=anomaly_result.get("anomaly_score"),
+            reasons=reasons,
+            cold_start=anomaly_result.get("cold_start", False),
+        ),
+        "patient_explanation": render_patient_explanation(
+            severity=severity,
+            is_anomaly=anomaly_result.get("is_anomaly", False),
+        ),
+        "dashboard_summary": summary,
         "reasons": reasons,
         "severity": severity,
     }

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ArrowLeft, BellRing, Phone, Send } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
@@ -5,7 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import TopNav from '../components/layout/TopNav.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
 import Table from '../components/ui/Table.jsx'
-import { alerts, patientReadings, patients, reminders, symptoms } from '../data/mockData.js'
+import { getDashboardPatient } from '../lib/api.js'
 
 function parseBp(bp) {
   const [systolic, diastolic] = bp.split('/').map(Number)
@@ -23,6 +24,10 @@ function buildLinePath(points, chartHeight, minValue, range) {
 }
 
 function MiniTrendChart({ readings }) {
+  if (readings.length === 0) {
+    return <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">No reading trend yet.</div>
+  }
+
   const values = readings.map((reading) => parseBp(reading.bp))
   const allValues = values.flatMap((reading) => [reading.systolic, reading.diastolic])
   const minValue = Math.min(...allValues) - 10
@@ -86,19 +91,78 @@ function MiniTrendChart({ readings }) {
 
 export default function PatientDetailPage() {
   const { patientId } = useParams()
-  const patient = patients.find((item) => item.id === patientId) ?? patients[0]
-  const readingRows = patientReadings[patient.id] ?? []
-  const patientAlerts = alerts.filter((alert) => alert.patientId === patient.id)
-  const patientReminderRows = reminders.filter((reminder) => reminder.patientId === patient.id)
-  const symptomLog = symptoms.find((item) => item.patientId === patient.id)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPatient() {
+      try {
+        setLoading(true)
+        const response = await getDashboardPatient(patientId)
+        if (!cancelled) {
+          setData(response)
+          setError('')
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError('Could not load patient dashboard.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadPatient()
+    return () => {
+      cancelled = true
+    }
+  }, [patientId])
+
+  const patient = data?.patient
+  const readingRows = useMemo(() => {
+    return (data?.readings ?? []).map((reading) => ({
+      id: reading.id,
+      bp: `${Math.round(reading.systolic)}/${Math.round(reading.diastolic)}`,
+      source: reading.source,
+      time: reading.timestamp,
+      anomaly: Boolean(reading.is_anomaly),
+      severity: (reading.fuzzy_severity ?? 'low').toLowerCase(),
+    }))
+  }, [data])
+  const patientAlerts = data?.alerts ?? []
+  const patientReminderRows = data?.reminders ?? []
+  const symptomLog = data?.symptom_log ?? null
 
   const columns = [
     { key: 'time', header: 'Timestamp', render: (row) => format(new Date(row.time), 'PPp') },
     { key: 'bp', header: 'BP' },
     { key: 'source', header: 'Source', render: (row) => <span className="capitalize">{row.source}</span> },
     { key: 'anomaly', header: 'Anomaly', render: (row) => <StatusBadge variant={row.anomaly ? 'critical' : 'low'}>{row.anomaly ? 'Yes' : 'No'}</StatusBadge> },
-    { key: 'severity', header: 'Severity', render: (row) => <StatusBadge variant={row.severity === 'critical' ? 'critical' : row.severity}>{row.severity}</StatusBadge> },
+    { key: 'severity', header: 'Severity', render: (row) => <StatusBadge variant={row.severity}>{row.severity}</StatusBadge> },
   ]
+
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <TopNav />
+        <main className="page-container p-6 text-sm text-slate-500">Loading patient dashboard...</main>
+      </div>
+    )
+  }
+
+  if (error || !patient) {
+    return (
+      <div className="app-shell">
+        <TopNav />
+        <main className="page-container p-6 text-sm text-red-600">{error || 'Patient not found.'}</main>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -139,19 +203,21 @@ export default function PatientDetailPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <article className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-500">Latest BP</p>
-                <p className="mt-3 text-3xl font-semibold text-slate-900">{patient.latestBp}</p>
-                <p className="mt-2 text-sm text-slate-500">{formatDistanceToNow(new Date(patient.latestReadingAt), { addSuffix: true })}</p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">{patient.latest_bp ?? 'N/A'}</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  {patient.latest_reading_at ? formatDistanceToNow(new Date(patient.latest_reading_at), { addSuffix: true }) : 'No recent reading'}
+                </p>
               </article>
               <article className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-500">CKD Stage</p>
                 <div className="mt-3">
-                  <StatusBadge variant={`stage${patient.ckdStage}`}>Stage {patient.ckdStage}</StatusBadge>
+                  <StatusBadge variant={`stage${patient.ckd_stage}`}>Stage {patient.ckd_stage}</StatusBadge>
                 </div>
               </article>
               <article className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-500">Risk Level</p>
                 <div className="mt-3">
-                  <StatusBadge variant={patient.riskLevel}>{patient.riskLevel}</StatusBadge>
+                  <StatusBadge variant={patient.risk_level}>{patient.risk_level}</StatusBadge>
                 </div>
               </article>
             </div>
@@ -170,13 +236,17 @@ export default function PatientDetailPage() {
               <div className="mt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-500">Anomaly status</span>
-                  <StatusBadge variant={patient.riskLevel}>{patient.anomalyStatus}</StatusBadge>
+                  <StatusBadge variant={patient.risk_level}>{patient.anomaly_status}</StatusBadge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-500">Anomaly score</span>
-                  <span className="text-sm font-semibold text-slate-900">{patient.anomalyScore}</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {patient.anomaly_score != null ? patient.anomaly_score.toFixed(4) : 'N/A'}
+                  </span>
                 </div>
-                <p className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{patient.summary}</p>
+                <p className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                  {patient.clinical_explanation ?? patient.summary ?? 'No interpretation yet.'}
+                </p>
               </div>
             </article>
 
@@ -207,7 +277,7 @@ export default function PatientDetailPage() {
                 <div className="mt-4 space-y-3 text-sm text-slate-700">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-slate-50 p-3">Fatigue: <strong>{symptomLog.fatigue}/10</strong></div>
-                    <div className="rounded-xl bg-slate-50 p-3">Pain: <strong>{symptomLog.painLevel}/10</strong></div>
+                    <div className="rounded-xl bg-slate-50 p-3">Pain: <strong>{symptomLog.pain_level}/10</strong></div>
                     <div className="rounded-xl bg-slate-50 p-3">Swelling: <strong>{symptomLog.swelling}/10</strong></div>
                     <div className="rounded-xl bg-slate-50 p-3">Nausea: <strong>{symptomLog.nausea}/10</strong></div>
                   </div>
@@ -226,7 +296,7 @@ export default function PatientDetailPage() {
                     <div key={reminder.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
                       <div>
                         <p className="font-semibold text-slate-900">{reminder.type}</p>
-                        <p className="text-sm text-slate-500">{format(new Date(reminder.dueAt), 'PPp')}</p>
+                        <p className="text-sm text-slate-500">{format(new Date(reminder.scheduled_at), 'PPp')}</p>
                       </div>
                       <StatusBadge variant={reminder.status}>{reminder.status}</StatusBadge>
                     </div>

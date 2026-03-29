@@ -1,4 +1,34 @@
 services:
+  email-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: renalwatch-email-relay
+    command: python scripts/email_relay.py
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    environment:
+      EMAIL_RELAY_HOST: 0.0.0.0
+      EMAIL_RELAY_PORT: 8800
+      EMAIL_RELAY_TOKEN: renalwatch-demo-relay
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: renalwatch-ngrok
+    command: http api:8000
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - renalwatch-net
+
   db:
     image: postgres:16
     container_name: renalwatch-db
@@ -10,6 +40,8 @@ services:
       - "5436:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks:
+      - renalwatch-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U renal -d renalwatch"]
       interval: 5s
@@ -28,9 +60,15 @@ services:
       - "8001:8000"
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - renalwatch-net
     depends_on:
       db:
         condition: service_healthy
+      email-relay:
+        condition: service_started
 
   adb-worker:
     build:
@@ -42,9 +80,15 @@ services:
       - .:/app
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - renalwatch-net
     depends_on:
       db:
         condition: service_healthy
+      email-relay:
+        condition: service_started
     profiles:
       - workers
 
@@ -58,11 +102,21 @@ services:
       - .:/app
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - renalwatch-net
     depends_on:
       db:
         condition: service_healthy
+      email-relay:
+        condition: service_started
     profiles:
       - workers
 
 volumes:
   pg_data:
+
+networks:
+  renalwatch-net:
+    driver: bridge

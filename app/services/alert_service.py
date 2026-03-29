@@ -36,7 +36,7 @@ async def evaluate_reading_for_alerts(reading: BPReading, patient: Patient, db: 
     reading.anomaly_score = anomaly_result["anomaly_score"]
     reading.is_anomaly = 1 if anomaly_result["is_anomaly"] else 0
     reading.fuzzy_severity = rule_result["severity"]
-    reading.explanation = explanation_result["summary"] + " " + " ".join(explanation_result["reasons"])
+    reading.explanation = explanation_result["summary"]
 
     alert_type: str | None = None
     severity: str | None = None
@@ -45,15 +45,15 @@ async def evaluate_reading_for_alerts(reading: BPReading, patient: Patient, db: 
     if reading.fuzzy_severity == "crisis" or reading.systolic > 180 or reading.diastolic > 120:
         alert_type = "crisis"
         severity = "critical"
-        explanation = reading.explanation or "Rule-based alert triggered because blood pressure exceeded crisis threshold."
+        explanation = explanation_result["doctor_explanation"] or "Rule-based alert triggered because blood pressure exceeded crisis threshold."
     elif reading.is_anomaly == 1 and reading.fuzzy_severity in {"stage2", "crisis"}:
         alert_type = "spike"
         severity = "high"
-        explanation = reading.explanation or "Anomalous spike detected together with elevated severity."
+        explanation = explanation_result["doctor_explanation"] or "Anomalous spike detected together with elevated severity."
     elif reading.fuzzy_severity == "stage2" or reading.systolic >= 140 or reading.diastolic >= 90:
         alert_type = "stage2"
         severity = "high"
-        explanation = reading.explanation or "Rule-based alert triggered because blood pressure reached Stage 2 threshold."
+        explanation = explanation_result["doctor_explanation"] or "Rule-based alert triggered because blood pressure reached Stage 2 threshold."
 
     if alert_type is None or severity is None or explanation is None:
         return None

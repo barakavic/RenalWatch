@@ -2,8 +2,10 @@ import subprocess
 import sqlite3
 import os
 
-REMOTE_PATH = "/sdcard/Android/data/com.legend.simsonlab.app.android/db/fitPro"
-LOCAL_PATH = "fitPro.db"
+from app.core.config import settings
+
+REMOTE_PATH = settings.fitpro_remote_path
+LOCAL_PATH = settings.fitpro_local_path
 
 
 def pull_db():

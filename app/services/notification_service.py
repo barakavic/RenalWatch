@@ -7,6 +7,7 @@ import logging
 from app.core.config import settings
 from app.integrations.africas_talking import send_sms
 from app.integrations.email import send_email
+from app.nlp.formatter import render_symptom_summary
 from app.models.alert import Alert
 from app.models.patient import Patient
 from app.models.reminder import Reminder
@@ -91,13 +92,13 @@ async def send_reminder_notification(reminder: Reminder, patient: Patient) -> st
 
 
 async def notify_doctor_symptoms(patient: Patient, log: SymptomLog) -> str:
-    summary = (
-        f"RenalWatch Update for {patient.name} (Phone: {patient.phone}):\n"
-        f"Fatigue: {log.fatigue}/10\n"
-        f"Pain: {log.pain_level}/10\n"
-        f"Swelling: {log.swelling}/10\n"
-        f"Nausea: {log.nausea}/10\n"
-        f"Notes: {log.notes or 'N/A'}"
+    summary = render_symptom_summary(
+        patient_name=patient.name,
+        fatigue=log.fatigue,
+        pain_level=log.pain_level,
+        swelling=log.swelling,
+        nausea=log.nausea,
+        notes=log.notes,
     )
 
     channels_used: list[str] = []

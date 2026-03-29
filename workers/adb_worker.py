@@ -6,10 +6,13 @@ import sys
 import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.core.config import settings
 from app.integrations.zfit_adb import pull_db, get_latest_bp
 
-API_URL = os.getenv("RENALWATCH_API_URL", "http://api:8000/readings/")
-POLL_INTERVAL = int(os.getenv("ADB_POLL_INTERVAL", "30"))
+API_URL = os.getenv("RENALWATCH_API_URL", settings.renalwatch_api_url)
+POLL_INTERVAL = int(os.getenv("ADB_POLL_INTERVAL", str(settings.adb_poll_interval)))
+WEARABLE_PATIENT_ID = int(os.getenv("WEARABLE_PATIENT_ID", str(settings.wearable_patient_id)))
+ADB_PULL_ENABLED = os.getenv("ADB_PULL_ENABLED", str(settings.adb_pull_enabled)).lower() in {"1", "true", "yes", "on"}
 
 
 def start_worker():
@@ -18,8 +21,9 @@ def start_worker():
 
     while True:
         try:
-            # Attempt ADB pull, but continue using local fitPro.db if no device is attached.
-            pull_db()
+            if ADB_PULL_ENABLED:
+                # In full ADB mode, refresh the local DB before reading it.
+                pull_db()
 
             row = get_latest_bp()
             if not row:
@@ -34,7 +38,7 @@ def start_worker():
                 dt = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
 
                 payload = {
-                    "patient_id": 1,
+                    "patient_id": WEARABLE_PATIENT_ID,
                     "systolic": systolic,
                     "diastolic": diastolic,
                     "timestamp": dt.isoformat(),
