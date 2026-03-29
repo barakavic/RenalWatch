@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ArrowLeft, BellRing, Phone, Send } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
@@ -7,6 +7,8 @@ import TopNav from '../components/layout/TopNav.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
 import Table from '../components/ui/Table.jsx'
 import { getDashboardPatient } from '../lib/api.js'
+
+const REFRESH_INTERVAL_MS = 5000
 
 function parseBp(bp) {
   const [systolic, diastolic] = bp.split('/').map(Number)
@@ -94,17 +96,22 @@ export default function PatientDetailPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
     let cancelled = false
+    let intervalId
 
     async function loadPatient() {
       try {
-        setLoading(true)
+        if (!cancelled && !hasLoadedOnce.current) {
+          setLoading(true)
+        }
         const response = await getDashboardPatient(patientId)
         if (!cancelled) {
           setData(response)
           setError('')
+          hasLoadedOnce.current = true
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -118,8 +125,11 @@ export default function PatientDetailPage() {
     }
 
     loadPatient()
+    intervalId = window.setInterval(loadPatient, REFRESH_INTERVAL_MS)
+
     return () => {
       cancelled = true
+      window.clearInterval(intervalId)
     }
   }, [patientId])
 

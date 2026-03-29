@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, HeartPulse, Search, TrendingUp, Users } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Link } from 'react-router-dom'
@@ -9,6 +9,8 @@ import StatusBadge from '../components/ui/StatusBadge.jsx'
 import Table from '../components/ui/Table.jsx'
 import { getDashboardOverview } from '../lib/api.js'
 
+const REFRESH_INTERVAL_MS = 5000
+
 function stageVariant(stage) {
   return `stage${stage}`
 }
@@ -18,17 +20,22 @@ export default function PatientOverviewPage() {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
     let cancelled = false
+    let intervalId
 
     async function loadOverview() {
       try {
-        setLoading(true)
+        if (!cancelled && !hasLoadedOnce.current) {
+          setLoading(true)
+        }
         const data = await getDashboardOverview()
         if (!cancelled) {
           setOverview(data)
           setError('')
+          hasLoadedOnce.current = true
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -42,8 +49,11 @@ export default function PatientOverviewPage() {
     }
 
     loadOverview()
+    intervalId = window.setInterval(loadOverview, REFRESH_INTERVAL_MS)
+
     return () => {
       cancelled = true
+      window.clearInterval(intervalId)
     }
   }, [])
 
