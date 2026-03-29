@@ -11,7 +11,7 @@ def render_doctor_explanation(*, severity: str, anomaly_score: float | None, rea
 
 
 def render_patient_explanation(*, severity: str, is_anomaly: bool) -> str:
-    if severity == "crisis":
+    if severity == "stage3":
         return "Your blood pressure reading is very high. Please contact your doctor or seek urgent care right away."
     if severity == "stage2":
         return "Your blood pressure is higher than your target range. Please take a repeat reading and follow your care plan."

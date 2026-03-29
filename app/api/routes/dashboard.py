@@ -18,7 +18,7 @@ def _risk_rank(severity: str | None) -> int:
     normalized = (severity or "").lower()
     order = {
         "critical": 4,
-        "crisis": 4,
+        "stage3": 4,
         "high": 3,
         "stage2": 3,
         "medium": 2,
@@ -32,7 +32,7 @@ def _risk_rank(severity: str | None) -> int:
 
 def _risk_label(severity: str | None) -> str:
     normalized = (severity or "").lower()
-    if normalized in {"critical", "crisis"}:
+    if normalized in {"critical", "stage3"}:
         return "critical"
     if normalized in {"high", "stage2"}:
         return "high"

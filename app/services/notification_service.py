@@ -138,7 +138,7 @@ async def notify_doctor_symptoms(patient: Patient, log: SymptomLog) -> str:
 
 
 def _compose_patient_message(alert: Alert, patient: Patient) -> str:
-    if alert.alert_type == "crisis":
+    if alert.alert_type == "stage3":
         return (
             f"{patient.name}, critical BP alert: {alert.message} "
             "Please contact your doctor or seek immediate help."

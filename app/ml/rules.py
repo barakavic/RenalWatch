@@ -28,30 +28,30 @@ def classify_bp(systolic: float, diastolic: float) -> dict:
         }
     """
 
-    crisis = 1.0 if systolic > 180 or diastolic > 120 else 0.0
+    stage3 = 1.0 if systolic >= 180 or diastolic >= 110 else 0.0
 
     stage2 = 0.0
-    if crisis == 0.0 and (systolic >= 140 or diastolic >= 90):
+    if stage3 == 0.0 and (systolic >= 160 or diastolic >= 100):
         stage2 = max(
-            _rising_membership(systolic, 140, 180),
-            _rising_membership(diastolic, 90, 120),
+            _rising_membership(systolic, 160, 180),
+            _rising_membership(diastolic, 100, 110),
             0.6,
         )
 
     stage1 = 0.0
-    if crisis == 0.0 and stage2 == 0.0 and (130 <= systolic <= 139 or 80 <= diastolic <= 89):
+    if stage3 == 0.0 and stage2 == 0.0 and (140 <= systolic <= 159 or 90 <= diastolic <= 99):
         stage1 = max(
-            _rising_membership(systolic, 130, 140),
-            _rising_membership(diastolic, 80, 90),
+            _rising_membership(systolic, 140, 160),
+            _rising_membership(diastolic, 90, 100),
             0.6,
         )
 
     elevated = 0.0
-    if crisis == 0.0 and stage2 == 0.0 and stage1 == 0.0 and diastolic < 80 and 120 <= systolic <= 129:
+    if stage3 == 0.0 and stage2 == 0.0 and stage1 == 0.0 and (131 <= systolic <= 139 or 81 <= diastolic <= 89):
         elevated = 1.0
 
     normal = 0.0
-    if crisis == stage2 == stage1 == elevated == 0.0 and systolic < 120 and diastolic < 80:
+    if stage3 == stage2 == stage1 == elevated == 0.0 and systolic <= 130 and diastolic <= 80:
         normal = 1.0
 
     membership = {
@@ -59,21 +59,21 @@ def classify_bp(systolic: float, diastolic: float) -> dict:
         "elevated": round(_clamp(elevated), 4),
         "stage1": round(_clamp(stage1), 4),
         "stage2": round(_clamp(stage2), 4),
-        "crisis": round(_clamp(crisis), 4),
+        "stage3": round(_clamp(stage3), 4),
     }
 
-    severity_order = ["normal", "elevated", "stage1", "stage2", "crisis"]
+    severity_order = ["normal", "elevated", "stage1", "stage2", "stage3"]
     severity = max(severity_order, key=lambda key: membership[key])
     dominant_score = membership[severity]
 
     if dominant_score == 0.0:
-        if systolic > 180 or diastolic > 120:
-            severity = "crisis"
-        elif systolic >= 140 or diastolic >= 90:
+        if systolic >= 180 or diastolic >= 110:
+            severity = "stage3"
+        elif systolic >= 160 or diastolic >= 100:
             severity = "stage2"
-        elif systolic >= 130 or diastolic >= 80:
+        elif systolic >= 140 or diastolic >= 90:
             severity = "stage1"
-        elif 120 <= systolic <= 129 and diastolic < 80:
+        elif systolic >= 131 or diastolic >= 81:
             severity = "elevated"
         else:
             severity = "normal"

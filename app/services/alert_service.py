@@ -26,15 +26,35 @@ async def evaluate_reading_for_alerts(reading: BPReading, patient: Patient, db: 
         history=history,
     )
     rule_result = classify_bp(reading.systolic, reading.diastolic)
+    spike_detected = anomaly_result.get("spike_result", {}).get("spike_detected", False)
+    if_flagged = anomaly_result.get("if_result", {}).get("if_anomaly", False)
+    severe_bp = rule_result["severity"] in {"stage2", "stage3"}
+
+    # Keep anomaly flags clinically meaningful. Mild stage1/elevated readings should not
+    # show as anomalous unless there is an actual spike/instability pattern.
+    effective_is_anomaly = bool(spike_detected or (if_flagged and severe_bp))
+
+    effective_anomaly_result = {**anomaly_result, "is_anomaly": effective_is_anomaly}
+    if not effective_is_anomaly:
+        filtered_reasons = [
+            reason
+            for reason in anomaly_result.get("reasons", [])
+            if "Isolation Forest flagged reading as anomalous" not in reason
+        ]
+        effective_anomaly_result["reasons"] = filtered_reasons
+        effective_anomaly_result["flags"] = [
+            flag for flag in anomaly_result.get("flags", []) if flag != "isolation_forest_flag"
+        ]
+
     explanation_result = build_explanations(
         systolic=reading.systolic,
         diastolic=reading.diastolic,
-        anomaly_result=anomaly_result,
+        anomaly_result=effective_anomaly_result,
         rule_result=rule_result,
     )
 
     reading.anomaly_score = anomaly_result["anomaly_score"]
-    reading.is_anomaly = 1 if anomaly_result["is_anomaly"] else 0
+    reading.is_anomaly = 1 if effective_is_anomaly else 0
     reading.fuzzy_severity = rule_result["severity"]
     reading.explanation = explanation_result["summary"]
 
@@ -42,15 +62,15 @@ async def evaluate_reading_for_alerts(reading: BPReading, patient: Patient, db: 
     severity: str | None = None
     explanation: str | None = None
 
-    if reading.fuzzy_severity == "crisis" or reading.systolic > 180 or reading.diastolic > 120:
-        alert_type = "crisis"
+    if reading.fuzzy_severity == "stage3" or reading.systolic >= 180 or reading.diastolic >= 110:
+        alert_type = "stage3"
         severity = "critical"
-        explanation = explanation_result["doctor_explanation"] or "Rule-based alert triggered because blood pressure exceeded crisis threshold."
-    elif reading.is_anomaly == 1 and reading.fuzzy_severity in {"stage2", "crisis"}:
+        explanation = explanation_result["doctor_explanation"] or "Rule-based alert triggered because blood pressure exceeded Stage 3 threshold."
+    elif reading.is_anomaly == 1 and reading.fuzzy_severity in {"stage2", "stage3"}:
         alert_type = "spike"
         severity = "high"
         explanation = explanation_result["doctor_explanation"] or "Anomalous spike detected together with elevated severity."
-    elif reading.fuzzy_severity == "stage2" or reading.systolic >= 140 or reading.diastolic >= 90:
+    elif reading.fuzzy_severity == "stage2" or reading.systolic >= 160 or reading.diastolic >= 100:
         alert_type = "stage2"
         severity = "high"
         explanation = explanation_result["doctor_explanation"] or "Rule-based alert triggered because blood pressure reached Stage 2 threshold."

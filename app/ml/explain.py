@@ -41,8 +41,8 @@ def build_explanations(
     for reason in anomaly_result.get("reasons", []):
         add_reason(reason.rstrip(".") + ".")
 
-    if severity == "crisis":
-        add_reason("Blood pressure is in the crisis range based on rule thresholds.")
+    if severity == "stage3":
+        add_reason("Blood pressure is in the Stage 3 hypertension range.")
     elif severity == "stage2":
         add_reason("Blood pressure is in the Stage 2 hypertension range.")
     elif severity == "stage1":
